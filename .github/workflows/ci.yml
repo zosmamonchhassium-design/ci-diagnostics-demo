@@ -1,0 +1,34 @@
+name: Dashboard CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Check and build dashboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '18.20.8'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify build configuration
+        run: npm run verify:config
+
+      - name: Build dashboard
+        run: npm run build
