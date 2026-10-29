@@ -1,34 +1,56 @@
-# Northstar operations dashboard
+# Pulse Telemetry Dashboard
 
-A small React and TypeScript dashboard for reviewing weekly service traffic, availability, and response times. All metrics are synthetic and fixed for demonstration. The app does not connect to external services.
+A modern, responsive React + TypeScript dashboard designed for monitoring service fleet telemetry, system uptime, and operational events.
 
-## Local development
+## Prerequisites
 
-Use a Node.js version supported by the `engines` entry in `package.json`. The development version is recorded in `.nvmrc`.
+- **Node.js**: `^20.19.0 || >=22.12.0` (Local testing verified on Node 22)
+- **npm**: `10.x` or later (strict engine verification is enabled via `.npmrc`)
 
-```sh
-npm ci
+## Getting Started
+
+### 1. Install Dependencies
+
+Install the pinned project dependencies:
+
+```bash
+npm install
+```
+
+### 2. Local Development
+
+Start the local Vite development server:
+
+```bash
 npm run dev
 ```
 
-Open the localhost URL printed by Vite. The development server uses a default report label when no label is supplied.
+Open your browser to [http://localhost:5173](http://localhost:5173). In development mode, the dashboard provides a default fallback label (`Local Dev Preview`) for the reporting badge.
 
-## Production build
+## Build Configuration
 
-Set a public report label in the build environment:
+For production builds, the environment requires an explicit report label supplied via the process environment:
 
-```sh
-VITE_PUBLIC_REPORT_LABEL=Demo npm run build
-npm run preview
+- **Variable**: `VITE_PUBLIC_REPORT_LABEL`
+- **Requirement**: Must be a non-empty string (whitespace-only values are rejected).
+- **Usage**: Used by Vite during bundle creation to stamp the production report label into the UI.
+
+Example export:
+
+```bash
+export VITE_PUBLIC_REPORT_LABEL="Production Metrics Fleet"
 ```
 
-This label is public display text, not a secret. The build checks its presence and runs TypeScript before producing the `dist/` directory.
+## Available Scripts
 
-## Checks
+| Script | Description |
+| :--- | :--- |
+| `npm run dev` | Runs the Vite development server with hot module replacement (HMR). |
+| `npm run verify:config` | Verifies that all required build environment variables (`VITE_PUBLIC_REPORT_LABEL`) are defined. |
+| `npm run typecheck` | Runs TypeScript compiler checks without emitting code (`tsc --noEmit`). |
+| `npm run build` | Full production build: verifies configuration, checks TypeScript types, and creates bundle in `dist/`. |
+| `npm run preview` | Locally serves the built production assets from `dist/`. |
 
-```sh
-npm run typecheck
-npm run verify:config
-```
+## Continuous Integration
 
-The configuration check reads the current process environment. It does not load `.env` files. GitHub Actions runs the install, configuration check, and production build for changes to `main` and for pull requests.
+The repository uses GitHub Actions (`.github/workflows/ci.yml`) to validate incoming pull requests and merges to `main`. The pipeline runs dependency installation with strict engine enforcement (`npm ci`), verifies build configuration, executes TypeScript type-checking, and generates the production dashboard bundle.

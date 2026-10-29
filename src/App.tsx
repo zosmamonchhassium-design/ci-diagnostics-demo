@@ -1,107 +1,181 @@
-const metrics = [
-  { title: 'Requests processed', value: '248,620', detail: '+12.4% vs. previous week', trend: 'positive' },
-  { title: 'Service availability', value: '99.97%', detail: 'Above the 99.9% target', trend: 'positive' },
-  { title: 'Median response', value: '142 ms', detail: '18 ms faster this week', trend: 'positive' },
-  { title: 'Open incidents', value: '02', detail: '2 low priority, 0 critical', trend: 'neutral' },
-];
-
-const traffic = [
-  { day: 'Mon', requests: 28_420 },
-  { day: 'Tue', requests: 34_600 },
-  { day: 'Wed', requests: 31_180 },
-  { day: 'Thu', requests: 39_720 },
-  { day: 'Fri', requests: 43_860 },
-  { day: 'Sat', requests: 36_240 },
-  { day: 'Sun', requests: 34_600 },
-];
-
-const services = [
-  { name: 'Gateway API', description: 'Public request routing', availability: '99.99%', latency: '86 ms', status: 'Operational' },
-  { name: 'Reporting', description: 'Scheduled report generation', availability: '99.95%', latency: '218 ms', status: 'Operational' },
-  { name: 'Event processing', description: 'Background event delivery', availability: '99.97%', latency: '124 ms', status: 'Operational' },
-  { name: 'Search', description: 'Internal index queries', availability: '99.96%', latency: '141 ms', status: 'Operational' },
-];
+import { useState } from 'react';
+import {
+  INITIAL_SUMMARY,
+  INITIAL_SERVICES,
+  INITIAL_INCIDENTS,
+} from './data/mockTelemetry';
+import { FilterStatus, ServiceMetric, DashboardSummary } from './types';
 
 export function App() {
-  const reportLabel = import.meta.env.VITE_PUBLIC_REPORT_LABEL?.trim() || 'Demo operations';
+  const [summary, setSummary] = useState<DashboardSummary>(INITIAL_SUMMARY);
+  const [services, setServices] = useState<ServiceMetric[]>(INITIAL_SERVICES);
+  const [filter, setFilter] = useState<FilterStatus>('all');
+  const [lastRefreshed, setLastRefreshed] = useState<string>(
+    new Date().toLocaleTimeString()
+  );
+
+  // A default label is allowed only for dev UI display
+  const reportLabel =
+    (import.meta.env.VITE_PUBLIC_REPORT_LABEL &&
+      import.meta.env.VITE_PUBLIC_REPORT_LABEL.trim()) ||
+    'Local Dev Preview';
+
+  const handleSimulateCycle = () => {
+    // Generate slight synthetic variance for metrics
+    setServices((prev) =>
+      prev.map((svc) => {
+        const jitter = Math.floor(Math.random() * 7) - 3;
+        const newLatency = Math.max(5, svc.latencyMs + jitter);
+        const cpuJitter = Math.floor(Math.random() * 5) - 2;
+        const newCpu = Math.min(99, Math.max(10, svc.cpuUtilizationPercent + cpuJitter));
+        return {
+          ...svc,
+          latencyMs: newLatency,
+          cpuUtilizationPercent: newCpu,
+        };
+      })
+    );
+
+    setSummary((prev) => ({
+      ...prev,
+      p99LatencyMs: Math.max(25, prev.p99LatencyMs + Math.floor(Math.random() * 5) - 2),
+      requestRatePerMin: prev.requestRatePerMin + Math.floor(Math.random() * 120) - 50,
+    }));
+
+    setLastRefreshed(new Date().toLocaleTimeString());
+  };
+
+  const filteredServices = services.filter((svc) => {
+    if (filter === 'all') return true;
+    return svc.status === filter;
+  });
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="Northstar overview">
-          <span className="brand-mark" aria-hidden="true">N</span>
-          NORTHSTAR
-        </a>
-        <span className="workspace-name">Engineering / Operations</span>
-        <span className="demo-badge">SYNTHETIC DATA</span>
+    <div className="dashboard-container">
+      <header className="dashboard-header">
+        <div className="header-title-group">
+          <h1>Pulse Telemetry Dashboard</h1>
+          <p>Real-time service fleet performance and health monitoring</p>
+        </div>
+        <div className="header-badge-group">
+          <span className="report-badge" title="Active build report label">
+            Label: {reportLabel}
+          </span>
+          <span className="status-pill healthy">
+            <span className="pulse-dot"></span>
+            Fleet Operational
+          </span>
+        </div>
       </header>
 
-      <main>
-        <div className="page-heading">
-          <div>
-            <p className="eyebrow">{reportLabel}</p>
-            <h1>Operations overview</h1>
-            <p className="subtitle">A weekly view of service traffic and reliability.</p>
-          </div>
-          <div className="date-range"><span aria-hidden="true">&#9638;</span> Oct 19 - Oct 25, 2026</div>
+      <section className="metrics-grid" aria-label="Summary Metrics">
+        <div className="metric-card">
+          <div className="metric-label">System Uptime (30d)</div>
+          <div className="metric-value">{summary.uptimePercentage.toFixed(2)}%</div>
+          <div className="metric-sub">SLA Target: &ge;99.90%</div>
         </div>
+        <div className="metric-card">
+          <div className="metric-label">Active Nodes</div>
+          <div className="metric-value">
+            {summary.healthyNodes} / {summary.totalNodes}
+          </div>
+          <div className="metric-sub">3 nodes in reserve/maint</div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-label">Ingress Throughput</div>
+          <div className="metric-value">
+            {summary.requestRatePerMin.toLocaleString()}
+          </div>
+          <div className="metric-sub">Requests per minute</div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-label">P99 Latency</div>
+          <div className="metric-value">{summary.p99LatencyMs} ms</div>
+          <div className="metric-sub">Target &lt; 50 ms</div>
+        </div>
+      </section>
 
-        <section className="metrics" aria-label="Weekly summary">
-          {metrics.map((metric) => (
-            <article className="metric-card" key={metric.title}>
-              <h2>{metric.title}</h2>
-              <p className="metric-value">{metric.value}</p>
-              <p className={`metric-detail ${metric.trend}`}>{metric.detail}</p>
-            </article>
+      <div className="toolbar-section">
+        <div className="filter-group" role="group" aria-label="Filter by health status">
+          {(['all', 'healthy', 'degraded', 'maintenance'] as const).map((status) => (
+            <button
+              key={status}
+              type="button"
+              className={`filter-btn ${filter === status ? 'active' : ''}`}
+              onClick={() => setFilter(status)}
+            >
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </button>
           ))}
-        </section>
-
-        <div className="detail-grid">
-          <section className="panel traffic-panel" aria-labelledby="traffic-title">
-            <div className="panel-heading">
-              <div><h2 id="traffic-title">Request volume</h2><p>Daily requests across all services</p></div>
-              <span className="chart-legend"><span />Requests</span>
-            </div>
-            <div className="chart" role="img" aria-label={traffic.map(({ day, requests }) => `${day}: ${requests.toLocaleString('en-US')} requests`).join('; ')}>
-              <div className="chart-scale" aria-hidden="true"><span>50k</span><span>25k</span><span>0</span></div>
-              <div className="chart-bars" aria-hidden="true">
-                {traffic.map(({ day, requests }) => (
-                  <div className="chart-column" key={day}>
-                    <span className="bar-value">{(requests / 1_000).toFixed(1)}k</span>
-                    <div className="bar-track"><div className="bar" style={{ height: `${requests / 50_000 * 100}%` }} /></div>
-                    <span className="bar-label">{day}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <aside className="panel reliability-panel" aria-labelledby="reliability-title">
-            <h2 id="reliability-title">Reliability target</h2>
-            <p className="panel-subtitle">Weekly service availability</p>
-            <div className="availability-gauge"><div><strong>99.97<span>%</span></strong><span>availability</span></div></div>
-            <p className="target-result">Target met</p>
-            <p className="target-note">Availability stayed above the 99.9% weekly target.</p>
-          </aside>
         </div>
+        <button
+          type="button"
+          className="action-btn"
+          onClick={handleSimulateCycle}
+        >
+          Simulate Telemetry Tick
+        </button>
+      </div>
 
-        <section className="panel services-panel" aria-labelledby="services-title">
-          <div className="panel-heading"><div><h2 id="services-title">Service health</h2><p>Weekly performance by service</p></div><span className="service-count">4 services</span></div>
-          <div className="table-scroll">
-            <table>
-              <thead><tr><th scope="col">Service</th><th scope="col">Availability</th><th scope="col">Median response</th><th scope="col">Status</th></tr></thead>
-              <tbody>{services.map((service) => (
-                <tr key={service.name}>
-                  <td><strong>{service.name}</strong><span className="service-description">{service.description}</span></td>
-                  <td>{service.availability}</td><td>{service.latency}</td>
-                  <td><span className="status"><span aria-hidden="true" />{service.status}</span></td>
+      <section className="table-card" aria-label="Service Fleet Table">
+        <div className="table-header-title">Service Fleet Inventory</div>
+        <div className="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Service Name</th>
+                <th>Tier</th>
+                <th>Health Status</th>
+                <th>Latency</th>
+                <th>Error Rate</th>
+                <th>CPU Load</th>
+                <th>Throughput</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredServices.map((svc) => (
+                <tr key={svc.id}>
+                  <td className="service-name">{svc.name}</td>
+                  <td>
+                    <span className="tier-badge">{svc.tier}</span>
+                  </td>
+                  <td>
+                    <span className={`status-pill ${svc.status}`}>
+                      <span className="pulse-dot"></span>
+                      {svc.status}
+                    </span>
+                  </td>
+                  <td>{svc.latencyMs} ms</td>
+                  <td>{svc.errorRatePercent.toFixed(2)}%</td>
+                  <td>{svc.cpuUtilizationPercent}%</td>
+                  <td>{svc.requestRatePerSec} req/s</td>
                 </tr>
-              ))}</tbody>
-            </table>
-          </div>
-        </section>
-        <footer>Demo workspace. All metrics are synthetic. <span>Weekly report / UTC</span></footer>
-      </main>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="incident-card" aria-label="Recent Events">
+        <h2>Recent Fleet Activity</h2>
+        <div className="incident-list">
+          {INITIAL_INCIDENTS.map((item) => (
+            <div key={item.id} className={`incident-item ${item.severity}`}>
+              <div className="incident-meta">
+                <strong>{item.service}</strong>
+                <span>{item.timestamp}</span>
+              </div>
+              <p className="incident-desc">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <footer className="dashboard-footer">
+        Last telemetry cycle: {lastRefreshed} &bull; Environment: {import.meta.env.MODE}
+      </footer>
     </div>
   );
 }
+
+export default App;

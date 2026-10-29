@@ -1,10 +1,18 @@
-const key = 'VITE_PUBLIC_REPORT_LABEL';
-const label = process.env[key]?.trim();
+/**
+ * Build configuration verification script.
+ * Validates required environment variables before building for production.
+ */
 
-if (!label) {
-  console.error(`Build configuration error: ${key} is required.`);
-  console.error(`Set a nonsecret report label before building, for example ${key}=Demo.`);
+const requiredEnvVar = 'VITE_PUBLIC_REPORT_LABEL';
+const value = process.env[requiredEnvVar];
+
+if (typeof value !== 'string' || value.trim().length === 0) {
+  console.error('\n❌ Configuration verification failed:');
+  console.error(`   Required environment variable "${requiredEnvVar}" is missing or empty.`);
+  console.error(`   Received value: ${value === undefined ? '<undefined>' : JSON.stringify(value)}`);
+  console.error('\n   To fix this, provide a non-empty string in your environment before building.');
+  console.error(`   Example: export ${requiredEnvVar}="Production Build"\n`);
   process.exit(1);
 }
 
-console.log(`Build configuration verified: ${key} is set.`);
+console.log(`\n✔ Configuration verified: ${requiredEnvVar}="${value.trim()}"\n`);
